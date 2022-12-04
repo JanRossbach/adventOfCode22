@@ -1,0 +1,6 @@
+.lsp
+.cpcache
+.projectile
+.clj-kondo
+.nrepl-port
+*.org
