@@ -130,4 +130,53 @@ input4
 
 (def result42 (count (filter pair-overlaps? pairs)))
 
-861
+;; Tag 5
+
+(def init-crates {1 '(:J :F :C :N :D :B :W)
+                  2 '(:T :S :L :Q :V :Z :P)
+                  3 '(:T :J :G :B :Z :P)
+                  4 '(:C :H :B :Z :J :L :T :D)
+                  5 '(:S :J :B :V :G)
+                  6 '(:Q :S :P)
+                  7 '(:N :P :M :L :F :D :V :B)
+                  8 '(:R :L :D :B :F :M :S :P)
+                  9 '(:R :T :D :V)})
+
+(def input5 (str/split (slurp "input5.txt") #"\n"))
+
+(def commands (drop 10 input5))
+
+(defn parse-command [c]
+  (let [[_ num from to] (first (re-seq #"move (\d*) from (\d*) to (\d*)" c))]
+    {:num (read-string num)
+     :from (read-string from)
+     :to (read-string to)}))
+
+(def data (map parse-command commands))
+
+(defn exec [crates {:keys [num from to]}]
+  (let [old-from (get crates from)
+        old-to (get crates to)
+        new-to (concat (reverse (take num old-from)) old-to)
+        new-from (drop num old-from)
+        new-crates (assoc crates from new-from to new-to)]
+    new-crates))
+
+
+(def result51 (reduce exec init-crates data))
+
+(apply str (map (fn [n] (name (first (get result51 n)))) (range 1 10))) ;; Convert into Output String
+
+;; Part 2
+
+(defn exec2 [crates {:keys [num from to]}]
+  (let [old-from (get crates from)
+        old-to (get crates to)
+        new-to (concat (take num old-from) old-to)
+        new-from (drop num old-from)
+        new-crates (assoc crates from new-from to new-to)]
+    new-crates))
+
+(def result52 (reduce exec2 init-crates data))
+
+(apply str (map (fn [n] (name (first (get result52 n)))) (range 1 10))) ;; Convert into Output String
