@@ -1,5 +1,9 @@
 (ns advent
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [data.deque :as dq]))
+
+(defn read-lines [s]
+  (str/split (slurp s) #"\n"))
 
 ;; Tag 1
 
@@ -180,3 +184,22 @@ input4
 (def result52 (reduce exec2 init-crates data))
 
 (apply str (map (fn [n] (name (first (get result52 n)))) (range 1 10))) ;; Convert into Output String
+
+;; Tag 6
+
+
+(def input6 (slurp "input6.txt"))
+
+(defn solve6 [s n]
+  (loop [q (apply dq/deque (take n s))
+         i n
+         cs (drop n s)]
+    (assert (= n (count q)))
+    (if (= n (count (distinct q)))
+      i
+      (recur (-> q (dq/add-first (first cs)) (dq/remove-last))
+             (inc i)
+             (rest cs)))))
+
+(def result61 (solve6 input6 4))
+(def result62 (solve6 input6 14))
