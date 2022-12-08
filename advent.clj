@@ -1,6 +1,7 @@
 (ns advent
   (:require [clojure.string :as str]
-            [data.deque :as dq]))
+            [data.deque :as dq]
+            [clojure.core.matrix.selection :refer [sel irange end]]))
 
 (defn read-lines [s]
   (str/split (slurp s) #"\n"))
@@ -17,8 +18,6 @@
                          :v []}
                         input1)))
 
-(println data1)
-
 (def sums (map #(apply + %) data1))
 
 (def result11 (apply max sums))
@@ -26,6 +25,7 @@
 (def result12 (apply + (take 3 (reverse (sort sums)))))
 
 ;; Tag2
+
 
 (def input2 (str/split (slurp "input2.txt") #"\n"))
 
@@ -203,3 +203,148 @@ input4
 
 (def result61 (solve6 input6 4))
 (def result62 (solve6 input6 14))
+
+;; Tag 7
+
+(def input7 (read-lines "input7.txt"))
+
+(defn command? [s]
+  (= \$ (first s)))
+
+(defn create-dir
+  [lines]
+  (reduce (fn [tree line]
+            (cond
+              (re-matches #"dir (.+)" line) (let [[_ name] (re-matches #"dir (.+)" line)] (assoc tree name {}))
+              (re-matches #"(\d+) (.+)" line) (let [[_ size name] (re-matches #"(\d+) (.+)" line)] (assoc tree :files (conj (:files tree) {:filename name :size (read-string size)})))
+              :else (throw (Exception. (str "Unrecognized input |" line "| encountered!")))))
+          {:files []}
+          lines))
+
+(defn read-file-tree
+  [ls]
+  (loop [path []
+         tree {:files []}
+         output-list ls]
+    (if (empty? output-list)
+      tree
+      (let [line (first output-list)]
+        (cond
+          (re-matches #"\$ cd .." line) (recur (pop path) tree (rest output-list))
+          (re-matches #"\$ cd /" line) (recur [] tree (rest output-list))
+          (re-matches #"\$ cd (.+)" line) (recur (conj path (second (re-matches #"\$ cd (.+)" line))) tree (rest output-list))
+          (re-matches #"\$ ls" line) (recur path
+                                            (if (empty? path)
+                                              (create-dir (take-while #(not (command? %)) (rest output-list)))
+                                              (assoc-in tree path (create-dir (take-while #(not (command? %)) (rest output-list)))))
+                                            (drop-while #(not (command? %)) (rest output-list))))))))
+
+(def file-tree (read-file-tree input7))
+
+(def dirs (atom []))
+
+(defn total-dir-size
+  [dir]
+  (let [dir-size (reduce
+                  (fn [a e]
+                    (if (vector? e)
+                      (+ a (apply + (map :size e)))
+                      (+ a (total-dir-size e))))
+                  0
+                  (vals dir))]
+    (if (< dir-size 100000)
+      (do (swap! dirs conj dir-size) dir-size) ;; Save the size to calc sum later
+      dir-size)))
+
+(total-dir-size file-tree)
+
+(def result71 (apply + @dirs))
+
+(def dirs2 (atom []))
+
+(defn total-dir-size2
+  [dir]
+  (let [dir-size (reduce
+                  (fn [a e]
+                    (if (vector? e)
+                      (+ a (apply + (map :size e)))
+                      (+ a (total-dir-size2 e))))
+                  0
+                  (vals dir))]
+    (if true
+      (do (swap! dirs2 conj dir-size) dir-size) ;; Save the size to calc sum later
+      dir-size)))
+
+(def current-free-space (- 70000000 50216456))
+
+(def free-space-needed (- 30000000 current-free-space))
+
+(total-dir-size2 file-tree)
+
+(def result72 (first (sort (filter (fn [e] (< free-space-needed e)) @dirs2))))
+
+;; Tag 8
+
+(def input8 (read-lines "input8.txt"))
+
+(defn numstr->numvec [numstr]
+  (mapv (fn [c] (read-string (str c))) numstr))
+
+(def grid (m/matrix (mapv numstr->numvec input8)))
+
+(defn visible-to-the
+  [tree-line h]
+  (not (some (fn [e] (<= h e)) tree-line)))
+
+(defn visible?
+  "Checks if the tree in the grid at row i and column j is visible. If yes, return 1, otherwise 0."
+  [grid i j]
+  (if (or (= i 0) (= j 0))
+    1
+    (let [height (get (get grid i) j)
+          west-tree-line (flatten (sel grid (irange i i) (irange 0 (dec j))))
+          north-tree-line (flatten (sel grid (irange 0 (dec i)) (irange j j)))
+          south-tree-line (flatten (sel grid (irange (inc i) end) (irange j j)))
+          east-tree-line (flatten (sel grid (irange i i) (irange (inc j) end)))]
+      (cond
+        (visible-to-the north-tree-line height) 1
+        (visible-to-the east-tree-line height) 1
+        (visible-to-the west-tree-line height) 1
+        (visible-to-the south-tree-line height) 1
+        :else 0))))
+
+(def visible-trees (for [i (range (count grid))
+                         j (range (count (first grid)))]
+                     (visible? grid i j)))
+
+
+
+(def result81 (apply + (flatten visible-trees)))
+
+(defn calc-tree-score
+  [tree-line height]
+  (let [c (count (take-while (fn [t] (< t height)) tree-line))]
+    (if (not= c (count tree-line))
+      (inc c)
+      c)))
+
+(defn scenic-score
+  [grid i j]
+  (if (or (= i 0) (= j 0))
+    0
+    (let [height (get (get grid i) j)
+          west-tree-line (reverse (flatten (sel grid (irange i i) (irange 0 (dec j)))))
+          north-tree-line (reverse (flatten (sel grid (irange 0 (dec i)) (irange j j))))
+          south-tree-line (flatten (sel grid (irange (inc i) end) (irange j j)))
+          east-tree-line (flatten (sel grid (irange i i) (irange (inc j) end)))
+          west-score (calc-tree-score west-tree-line height)
+          east-score (calc-tree-score east-tree-line height)
+          north-score (calc-tree-score north-tree-line height)
+          south-score (calc-tree-score south-tree-line height)]
+      (* west-score east-score north-score south-score))))
+
+(def scores (for [i (range (count grid))
+                  j (range (count (first grid)))]
+              (scenic-score grid i j)))
+
+(def result82 (apply max (flatten scores)))

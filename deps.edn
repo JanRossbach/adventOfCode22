@@ -1,3 +1,5 @@
 {:deps
  {org.clojure/clojure {:mvn/version "1.10.3"}
-  data.deque/data.deque {:mvn/version "0.1.0"}}}
+  data.deque/data.deque {:mvn/version "0.1.0"}
+  net.mikera/core.matrix {:mvn/version "0.63.0"}
+  com.rpl/specter {:mvn/version "1.1.4"}}}
