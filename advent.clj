@@ -1,10 +1,10 @@
 (ns advent
   (:require [clojure.string :as str]
             [data.deque :as dq]
+            [clojure.core.matrix :as m]
             [clojure.core.matrix.selection :refer [sel irange end]]))
 
-(defn read-lines [s]
-  (str/split (slurp s) #"\n"))
+(def read-lines (comp str/split-lines slurp))
 
 ;; Tag 1
 
@@ -348,3 +348,77 @@ input4
               (scenic-score grid i j)))
 
 (def result82 (apply max (flatten scores)))
+
+(read-string "`(hello 1 2 3)")
+
+;; Tag 9
+
+(def input9 (read-lines "input9.txt"))
+
+(defn parse-instruction [s] [(first s) (read-string (apply str (drop 2 s)))])
+
+(def instructions (map parse-instruction input9))
+(def instructions-long (mapcat (fn [[c n]] (repeat n c)) instructions))
+
+(defn touching?
+  [[HX HY] [TX TY]]
+  (let [dX (Math/abs (- HX TX))
+        dY (Math/abs (- HY TY))]
+    (and (< dX 2)
+         (< dY 2))))
+
+(defn move-head [[X Y] direction]
+  (case direction
+    \R [(inc X) Y]
+    \L [(dec X) Y]
+    \U [X (inc Y)]
+    \D [X (dec Y)]))
+
+(defn catch-up-tail
+  [NH H T]
+  (if (touching? NH T)
+    T
+    H))
+
+(defn move [[H T] direction]
+  (let [NH (move-head H direction)
+        NT (catch-up-tail NH H T)]
+      [NH NT]))
+
+(def result91 (->> instructions-long
+                   (reductions move [[0 0] [0 0]])
+                   (map second)
+                   set
+                   count))
+
+(defn signum [x]
+  (if (pos? x) 1 -1))
+
+(defn catch-up [H T]
+  (let [[hx hy] H
+        [tx ty] T]
+    (cond
+      (touching? H T) T
+      (or (= hx tx) (= hy ty)) [(+ tx (quot (- hx tx) 2)) (+ ty (quot (- hy ty) 2))]
+      :else [(+ tx (signum (- hx tx))) (+ ty (signum (- hy ty)))])))
+
+(defn move2 [[H Ts] direction]
+  (let [NH (move-head H direction)
+        NTs (loop [h NH
+                   ts Ts
+                   a []]
+              (if (empty? ts)
+                a
+                (let [nt (catch-up h (first ts))]
+                  (recur
+                   nt
+                   (rest ts)
+                   (conj a nt)))))]
+    [NH NTs]))
+
+(def result92 (->> instructions-long
+                   (reductions move2 [[0 0] (repeat 9 [0 0])])
+                   (map second)
+                   (map last)
+                   set
+                   count))
