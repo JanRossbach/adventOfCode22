@@ -422,3 +422,55 @@ input4
                    (map last)
                    set
                    count))
+
+;; Tag 10
+
+(def input10 (read-lines "input10.txt"))
+
+(defn solve10
+  [instructions]
+  (loop [cycles [1]
+         is instructions]
+    (if (empty? is)
+      cycles
+      (if (= (first is) "noop")
+        (recur (conj cycles (last cycles)) (rest is))
+        (let [V (read-string (second (re-matches #"addx (-*\d+)" (first is))))]
+          (recur (conj (conj cycles (last cycles)) (+ (last cycles) V))
+                 (rest is)))))))
+
+(defn signal-strength
+  [cycles n]
+  (* n (nth cycles (dec n))))
+
+(def cycles (solve10 input10))
+
+(def result101 (apply + (map (partial signal-strength cycles) (range 20 260 40))))
+
+(defn visualize
+  [grid]
+  (str/join "\n" (map (partial apply str) grid)))
+
+(defn draw
+  [cycles]
+  (loop [grid-position 0
+         current-row []
+         grid []
+         cs cycles]
+    (if (or (empty? cs)
+            (= 6 (count grid)))
+      (visualize grid)
+      (let [X (first cs)
+            draw-char (if (<= (dec X) (mod grid-position 40) (inc X))
+                        \#
+                        \.)
+            [new-row new-grid] (if (= 40 (count current-row))
+                                 [[draw-char] (conj grid current-row)]
+                                 [(conj current-row draw-char)   grid])]
+        (recur
+         (inc grid-position)
+         new-row
+         new-grid
+         (rest cs))))))
+
+#_(println (draw cycles))
