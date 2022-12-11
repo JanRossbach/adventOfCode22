@@ -474,3 +474,95 @@ input4
          (rest cs))))))
 
 #_(println (draw cycles))
+
+;; Tag 11
+
+(def input11 (map (comp (partial map str/trim) str/split-lines str/trim) (drop 1 (str/split (slurp "input11.txt") #"Monkey"))))
+
+(defn parse-monkey
+  [monkey-data-list]
+  (let [name (read-string (str (first (first monkey-data-list))))
+        starting-items (mapv read-string (str/split (second (re-matches #"Starting items: (.*)" (nth monkey-data-list 1))) #","))
+        [_ operator op-value] (re-matches #"Operation: new = old (.) (.*)" (nth monkey-data-list 2))
+        div-val (read-string (second (re-matches #"Test: divisible by (\d+)" (nth monkey-data-list 3))))
+        true-target (read-string (second (re-matches #"If true: throw to monkey (\d+)" (nth monkey-data-list 4))))
+        false-target (read-string (second (re-matches #"If false: throw to monkey (\d+)" (nth monkey-data-list 5))))]
+    {:name name
+     :items starting-items
+     :test (fn [e] (= 0 (mod e div-val)))
+     :div-val div-val
+     :operation (case operator
+                  "*" (fn [x] (* x (if (= op-value "old")
+                                     x (read-string op-value))))
+                  "+" (fn [x] (+ x (if (= op-value "old")
+                                     x (read-string op-value)))))
+     :true-target true-target
+     :false-target false-target
+     :inspected-item-count 0}))
+
+(def initial-monkeys (mapv parse-monkey input11))
+
+(defn inspect-item
+  "Executes one monkey inspecting the given item. Returns the new item-lists of all monkeys, where
+  item-lists is a vector where the index corresponds to the name of the monkey and the value is a vector if items the monkey is currently holding."
+  [monkey item-lists item]
+  (let [{:keys [name operation test true-target false-target]} monkey
+        new-value (int (/ (operation item) 3))
+        target (if (test new-value) true-target false-target)]
+    (assoc item-lists target (conj (get item-lists target) new-value))))
+
+(defn round
+  "plays a round and returns the new monkey state"
+  [ms _]
+  (loop [item-lists (mapv :items ms)
+         inspected-item-counts (mapv :inspected-item-count ms)
+         monkeys ms]
+    (if (empty? monkeys)
+      (mapv (fn [m i ic] (assoc m :items i :inspected-item-count ic)) ms item-lists inspected-item-counts)
+      (let [monkey (first monkeys)
+            name (:name monkey)
+            items (get item-lists name)
+            inspected-item-count (get inspected-item-counts name)
+            new-item-lists (assoc (reduce (partial inspect-item monkey) item-lists items) name [])]
+        (recur
+         new-item-lists
+         (assoc inspected-item-counts name (+ (count items) inspected-item-count))
+         (rest monkeys))))))
+
+(defn play-rounds [initial-state n]
+  (reduce round initial-state (range n)))
+
+(def result111 (apply * (take 2 (reverse (sort (map :inspected-item-count (play-rounds initial-monkeys 20)))))))
+
+(defn inspect-item2
+  "Executes one monkey inspecting the given item. Returns the new item-lists of all monkeys, where
+  item-lists is a vector where the index corresponds to the name of the monkey and the value is a vector if items the monkey is currently holding."
+  [monkey cm item-lists item]
+  (let [{:keys [name operation test true-target false-target]} monkey
+        new-value (mod (operation item) cm)
+        target (if (test new-value) true-target false-target)]
+    (assoc item-lists target (conj (get item-lists target) new-value))))
+
+(defn round2
+  "plays a round and returns the new monkey state"
+  [ms _]
+  (let [common-multiple (apply * (map :div-val ms))]
+    (loop [item-lists (mapv :items ms)
+           inspected-item-counts (mapv :inspected-item-count ms)
+           monkeys ms]
+      (if (empty? monkeys)
+        (mapv (fn [m i ic] (assoc m :items i :inspected-item-count ic)) ms item-lists inspected-item-counts)
+        (let [monkey (first monkeys)
+              name (:name monkey)
+              items (get item-lists name)
+              inspected-item-count (get inspected-item-counts name)
+              new-item-lists (assoc (reduce (partial inspect-item2 monkey common-multiple) item-lists items) name [])]
+          (recur
+           new-item-lists
+           (assoc inspected-item-counts name (+ (count items) inspected-item-count))
+           (rest monkeys)))))))
+
+(defn play-rounds2 [initial-state n]
+  (reduce round2 initial-state (range n)))
+
+(def result112 (apply * (take 2 (reverse (sort (map :inspected-item-count (play-rounds2 initial-monkeys 10000)))))))
