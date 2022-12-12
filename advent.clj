@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [data.deque :as dq]
             [clojure.core.matrix :as m]
-            [clojure.core.matrix.selection :refer [sel irange end]]))
+            [clojure.core.matrix.selection :refer [sel irange end where]]))
 
 (def read-lines (comp str/split-lines slurp))
 
@@ -566,3 +566,46 @@ input4
   (reduce round2 initial-state (range n)))
 
 (def result112 (apply * (take 2 (reverse (sort (map :inspected-item-count (play-rounds2 initial-monkeys 10000)))))))
+
+;; Tag 12
+
+(def input12 (str/split-lines (slurp "input12.txt")))
+(def height-map (m/matrix (mapv vec input12)))
+
+(defn index-of
+  "Returns a lazy seq of [Row Col] index pairs of the element in the grid, which is a 2d matrix."
+  [element grid]
+  (keep-indexed #(if (seq %2) [%1 (first %2)] nil)
+                (map #(keep-indexed (fn [index item] (if (= item element) index nil)) %)
+                     grid)))
+
+(defn normalise
+  [e]
+  (case e \S \a \E \z e))
+
+(defn get-successors
+  [height-map node]
+  (let [height (get-in height-map node)
+        current-height-val ((comp inc int normalise) height)
+        [i j] node]
+    (filter (fn [succ] (<= ((comp int normalise) (get-in height-map succ 100000)) current-height-val))
+            [[(inc i) j] [(dec i) j] [i (inc j)] [i (dec j)]])))
+
+(defn bfs
+  [height-map from to]
+  (let [start-location (index-of from height-map)
+        end-location (first (index-of to height-map))]
+    (loop [nodes (set start-location)
+           visited #{}
+           depth 0]
+      (if (contains? (set nodes) end-location)
+        depth
+        (let [successors (set (mapcat (partial get-successors height-map) nodes))]
+          (recur
+           (remove visited successors)
+           (into visited nodes)
+           (inc depth)))))))
+
+(def result121 (bfs height-map \S \E))
+
+(def result122 (bfs height-map \a \E))
