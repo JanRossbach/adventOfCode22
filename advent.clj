@@ -609,3 +609,57 @@ input4
 (def result121 (bfs height-map \S \E))
 
 (def result122 (bfs height-map \a \E))
+
+;; Day 13
+
+(def input13 (str/split-lines (slurp "input13.txt")))
+
+(def packet-pairs (->> input13
+                       (filter #(not= "" %))
+                       (partition 2)
+                       (map #(mapv read-string %))))
+
+
+(defn get-ordering
+  [elem1 elem2]
+  (cond
+    ;; Two ints
+    (and (integer? elem1) (integer? elem2))
+    (cond
+      (< elem1 elem2) :lt
+      (> elem1 elem2) :gt
+      :else :eq)
+    ;; One int
+    (and (integer? elem1) (coll? elem2)) (get-ordering [elem1] elem2)
+    (and (coll? elem1) (integer? elem2)) (get-ordering elem1 [elem2])
+    ;; Two colls
+    :else
+    (loop [[H1 & T1 :as e1] elem1
+           [H2 & T2 :as e2] elem2]
+      (cond
+        (and (empty? e1) (empty? e2)) :eq
+        (empty? e1) :lt
+        (empty? e2) :gt
+        :else (let [r (get-ordering H1 H2)]
+                (case r
+                  :eq (recur T1 T2)
+                  r))))))
+
+(defn in-the-right-order?
+  [[packet1 packet2]]
+  (case (get-ordering packet1 packet2)
+    :gt false
+    :lt true
+    :eq true))
+
+(def result131 (reduce + (keep-indexed (fn [index item] (if (in-the-right-order? item)
+                                                         (inc index)
+                                                         nil)) packet-pairs)))
+
+(def packets (apply concat '([[2]] [[6]]) packet-pairs))
+
+(def sorted-packets (sort (fn [e1 e2] (let [o (get-ordering e1 e2)] (case o :eq 0 :lt -1 :gt 1))) packets))
+
+(def divider-indices (keep-indexed (fn [i e] (if (or (= e [[2]]) (= e [[6]])) (inc i) nil)) sorted-packets))
+
+(def result132 (apply * divider-indices))
