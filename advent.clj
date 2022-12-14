@@ -663,3 +663,87 @@ input4
 (def divider-indices (keep-indexed (fn [i e] (if (or (= e [[2]]) (= e [[6]])) (inc i) nil)) sorted-packets))
 
 (def result132 (apply * divider-indices))
+
+;; Day 14
+
+(def input14 (str/split-lines (slurp "input14.txt")))
+
+(defn get-line-coords
+  [from to]
+  (let [[fx fy] from
+        [tx ty] to]
+    (cond
+      (and (= fx tx) (= fy ty)) '()
+
+      (and (= fx tx) (< fy ty)) (map (fn [y] [fx y]) (range fy (inc ty)))
+      (= fx tx) (map (fn [y] [fx y]) (range ty (inc fy)))
+
+      (and (= fy ty) (< fx tx)) (map (fn [x] [x fy]) (range fx (inc tx)))
+      (= fy ty) (map (fn [x] [x fy]) (range tx (inc fx)))
+
+      :else (throw (ex-info "Coords do not form a straight line" {:from from
+                                                                  :to to})))))
+
+(defn parse-line
+  "Returns a seq of all coordinates blocked by the lines defined by the given string"
+  [s]
+  (let [coords (map (fn [e] (mapv read-string (str/split e #","))) (str/split s #" -> "))]
+    (loop [from-coords (first coords)
+           rest-coords (rest coords)
+           blocked #{}]
+      (if (empty? rest-coords)
+        blocked
+        (let [to-coords (first rest-coords)
+              line-coords (get-line-coords from-coords to-coords)]
+          (recur
+           to-coords
+           (rest rest-coords)
+           (into blocked line-coords)))))))
+
+(def blocked-coordinates (set (mapcat parse-line input14)))
+
+(defn simulate-corn
+  [blocked-coordinates start-position void-point]
+  (loop [position start-position]
+    (if (< void-point (second position))
+      :falls-into-void
+      (let [[x y] position
+            below [x (inc y)]
+            below-left [(dec x) (inc y)]
+            below-right [(inc x) (inc y)]]
+        (cond
+          (not (contains? blocked-coordinates below)) (recur below)
+          (not (contains? blocked-coordinates below-left)) (recur below-left)
+          (not (contains? blocked-coordinates below-right)) (recur below-right)
+          :else position)))))
+
+(defn simulate-sand
+  [corn-sim blocked-coordinates start-position]
+  (let [void-point (apply max (map second blocked-coordinates))] ;; The lowest line coordinate. Past this is the void
+    (loop [blocked blocked-coordinates
+           sand-counter 0]
+      (let [new-corn (corn-sim blocked start-position void-point)]
+        (if (= :falls-into-void new-corn)
+          sand-counter
+          (recur
+           (conj blocked new-corn)
+           (inc sand-counter)))))))
+
+(def result141 (simulate-sand simulate-corn blocked-coordinates [500 0]))
+
+(defn simulate-corn2
+  [blocked-coordinates start-position void-point]
+  (loop [position start-position]
+    (let [[x y] position
+          below [x (inc y)]
+          below-left [(dec x) (inc y)]
+          below-right [(inc x) (inc y)]]
+      (cond
+        (= y (inc void-point)) position
+        (not (contains? blocked-coordinates below)) (recur below)
+        (not (contains? blocked-coordinates below-left)) (recur below-left)
+        (not (contains? blocked-coordinates below-right)) (recur below-right)
+        (= position start-position) :falls-into-void
+        :else position))))
+
+(def result142 (inc (simulate-sand simulate-corn2 blocked-coordinates [500 0])))
